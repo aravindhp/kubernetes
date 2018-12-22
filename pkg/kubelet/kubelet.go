@@ -34,6 +34,7 @@ import (
 	"github.com/opencontainers/selinux/go-selinux"
 
 	"k8s.io/client-go/informers"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 
 	cadvisorapi "github.com/google/cadvisor/info/v1"
 	libcontaineruserns "github.com/opencontainers/runc/libcontainer/userns"
@@ -44,6 +45,7 @@ import (
 	netutils "k8s.io/utils/net"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -66,6 +68,8 @@ import (
 	"k8s.io/klog/v2"
 	pluginwatcherapi "k8s.io/kubelet/pkg/apis/pluginregistration/v1"
 	statsapi "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
+	api "k8s.io/kubernetes/pkg/apis/core"
+	"k8s.io/kubernetes/pkg/apis/core/v1/validation"
 	"k8s.io/kubernetes/pkg/features"
 	kubeletconfiginternal "k8s.io/kubernetes/pkg/kubelet/apis/config"
 	"k8s.io/kubernetes/pkg/kubelet/apis/podresources"
@@ -1493,7 +1497,32 @@ func (kl *Kubelet) initializeRuntimeDependentModules() {
 func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 	ctx := context.Background()
 	if kl.logServer == nil {
-		kl.logServer = http.StripPrefix("/logs/", http.FileServer(http.Dir("/var/log/")))
+		file := http.FileServer(http.Dir("/var/log/"))
+		if utilfeature.DefaultFeatureGate.Enabled(features.NodeLogQuery) {
+			kl.logServer = http.StripPrefix("/logs/", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				query := req.URL.Query()
+				nodeLogQueryOptions := &v1.NodeLogQueryOptions{}
+				if err := legacyscheme.ParameterCodec.DecodeParameters(query, v1.SchemeGroupVersion, nodeLogQueryOptions); err != nil {
+					http.Error(w, err.Error(), http.StatusBadRequest)
+					return
+				}
+				nodeLogQueryOptions.TypeMeta = metav1.TypeMeta{}
+				if errs := validation.ValidateNodeLogQueryOptions(nodeLogQueryOptions); len(errs) > 0 {
+					http.Error(w, errors.NewInvalid(api.Kind("NodeLogQueryOptions"), "", errs).Error(),
+						http.StatusNotAcceptable)
+					return
+				}
+
+				services := parseQueryForServices(nodeLogQueryOptions.Query)
+				if len(services) > 0 {
+					journal.ServeHTTP(w, req)
+					return
+				}
+				file.ServeHTTP(w, req)
+			}))
+		} else {
+			kl.logServer = http.StripPrefix("/logs/", file)
+		}
 	}
 	if kl.kubeClient == nil {
 		klog.InfoS("No API server defined - no node status update will be sent")
