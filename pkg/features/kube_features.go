@@ -556,6 +556,13 @@ const (
 	// Enables NetworkPolicy status subresource
 	NetworkPolicyStatus featuregate.Feature = "NetworkPolicyStatus"
 
+	// owner: @aravindhp @LorbusChris
+	// kep: http://kep.k8s.io/2271
+	// alpha: v1.27
+	//
+	// Enables querying logs of node services using kubectl alpha node-logs
+	NodeLogQuery featuregate.Feature = "NodeLogQuery"
+
 	// owner: @xing-yang @sonasingh46
 	// kep: https://kep.k8s.io/2268
 	// alpha: v1.24
@@ -982,6 +989,8 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 	MultiCIDRRangeAllocator: {Default: false, PreRelease: featuregate.Alpha},
 
 	NetworkPolicyStatus: {Default: false, PreRelease: featuregate.Alpha},
+
+	NodeLogQuery: {Default: false, PreRelease: featuregate.Alpha},
 
 	NodeOutOfServiceVolumeDetach: {Default: true, PreRelease: featuregate.Beta},
 
