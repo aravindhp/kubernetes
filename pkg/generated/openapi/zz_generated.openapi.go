@@ -422,6 +422,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.NodeConfigStatus":                                                             schema_k8sio_api_core_v1_NodeConfigStatus(ref),
 		"k8s.io/api/core/v1.NodeDaemonEndpoints":                                                          schema_k8sio_api_core_v1_NodeDaemonEndpoints(ref),
 		"k8s.io/api/core/v1.NodeList":                                                                     schema_k8sio_api_core_v1_NodeList(ref),
+		"k8s.io/api/core/v1.NodeLogQueryOptions":                                                          schema_k8sio_api_core_v1_NodeLogQueryOptions(ref),
 		"k8s.io/api/core/v1.NodeProxyOptions":                                                             schema_k8sio_api_core_v1_NodeProxyOptions(ref),
 		"k8s.io/api/core/v1.NodeResources":                                                                schema_k8sio_api_core_v1_NodeResources(ref),
 		"k8s.io/api/core/v1.NodeSelector":                                                                 schema_k8sio_api_core_v1_NodeSelector(ref),
@@ -20661,6 +20662,89 @@ func schema_k8sio_api_core_v1_NodeList(ref common.ReferenceCallback) common.Open
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.Node", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_k8sio_api_core_v1_NodeLogQueryOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NodeLogQueryOptions is the query options for a Node's logs REST call. The options specified here intersect unless called out otherwise.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"sinceTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "sinceTime is an RFC3339 timestamp from which to show logs.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"untilTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "untilTime is an RFC3339 timestamp until which to show logs.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"tailLines": {
+						SchemaProps: spec.SchemaProps{
+							Description: "tailLines is used to retrieve the specified number of lines (not more than 100k) from the end of the log. Support for this is implementation specific and only available for service logs. It will be ignored for the unsupported case.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"pattern": {
+						SchemaProps: spec.SchemaProps{
+							Description: "pattern filters log entries by the provided regex pattern. On Linux nodes, this pattern will be read as a PCRE2 regex, on Windows nodes it will be read as a PowerShell regex. Support for this is implementation specific and will be ignored for the unsupported case.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"boot": {
+						SchemaProps: spec.SchemaProps{
+							Description: "boot show messages from a specific boot. Allowed values are less than 1. Passing an invalid boot offset will fail retrieving logs and return an error. Support for this is implementation specific and will be ignored for the unsupported case.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"query": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "query specifies services(s) or files from which to return logs. The server implements a heuristic to get the logs from service or files. Files are relative to the node's log directory. If both service and file heuristics are specified, an error will be returned. Each query is restricted to a 100 character length.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"query"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

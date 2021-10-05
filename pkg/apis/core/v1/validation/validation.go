@@ -18,11 +18,13 @@ package validation
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	utilvalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/pkg/apis/core/helper"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
@@ -142,6 +144,83 @@ func ValidatePodLogOptions(opts *v1.PodLogOptions) field.ErrorList {
 		}
 	}
 	return allErrs
+}
+
+// ValidateNodeLogQueryOptions checks if options that are set are at the correct
+// value. Any incorrect value will be returned to the ErrorList.
+func ValidateNodeLogQueryOptions(opts *v1.NodeLogQueryOptions) field.ErrorList {
+	files, allErrs := validateQuery(opts.Query)
+	if files && (opts.SinceTime != nil || opts.UntilTime != nil || opts.Boot != nil || opts.TailLines != nil ||
+		len(opts.Pattern) > 0) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("query"), opts.Query,
+			"file query cannot be combined with options"))
+	}
+	if opts.SinceTime != nil && opts.UntilTime != nil && (opts.SinceTime.After(opts.UntilTime.Time)) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("untilTime"), opts.UntilTime,
+			"must be after `sinceTime`"))
+	}
+	if opts.Boot != nil {
+		if *opts.Boot > 0 {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("boot"), *opts.Boot, "must be less than 1"))
+		}
+	}
+	if opts.TailLines != nil {
+		if err := utilvalidation.IsInRange((int)(*opts.TailLines), 0, 100000); err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("tailLines"), *opts.TailLines, err[0]))
+		}
+	}
+	if err := safeString(opts.Pattern); err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("pattern"), opts.Pattern, err.Error()))
+	}
+	return allErrs
+}
+
+func validateQuery(query []string) (bool, field.ErrorList) {
+	var files, services, totalLength int
+	allErrs := field.ErrorList{}
+
+	for _, q := range query {
+		totalLength += len(q)
+		// If the query contains `/\` it indicates a log file query
+		if strings.ContainsAny(q, `/\`) {
+			files++
+		} else {
+			services++
+			if err := safeString(q); err != nil {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("query"), q, err.Error()))
+			}
+		}
+	}
+	maxTotalServiceNamesLength := 1000
+	if totalLength > maxTotalServiceNamesLength {
+		allErrs = append(allErrs, field.TooLongMaxLength(field.NewPath("query"), query, maxTotalServiceNamesLength))
+	}
+
+	switch {
+	case files == 0 && services == 0:
+		allErrs = append(allErrs, field.Required(field.NewPath("query"), "cannot be empty"))
+	case files > 0 && services > 0:
+		allErrs = append(allErrs, field.Invalid(field.NewPath("query"), query, "cannot specify a file and service"))
+	case files > 1:
+		allErrs = append(allErrs, field.Invalid(field.NewPath("query"), query, "cannot specify more than one file"))
+	}
+	return files > 0, allErrs
+}
+
+func safeString(s string) error {
+	if len(s) > 100 {
+		return fmt.Errorf("length must be less than 100")
+	}
+	// The set of known safe characters to pass to journalctl flags - only
+	// add to this list if the character cannot be used to create invalid
+	// sequences. This is intended as a broad defense against malformed
+	// input that could cause a escape.
+	reServiceNameUnsafeCharacters := regexp.MustCompile(`[^a-zA-Z\-_.0-9\s@]+`)
+
+	if reServiceNameUnsafeCharacters.MatchString(s) {
+		return fmt.Errorf("input contains unsupported characters")
+	}
+	return nil
 }
 
 // AccumulateUniqueHostPorts checks all the containers for duplicates ports. Any

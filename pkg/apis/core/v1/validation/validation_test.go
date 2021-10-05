@@ -332,6 +332,161 @@ func TestValidatePodLogOptions(t *testing.T) {
 	}
 }
 
+func int64Ptr(i int64) *int64 {
+	return &i
+}
+
+func repeatString(s string, times int) []string {
+	var arr []string
+	for i := 0; i < times; i++ {
+		arr = append(arr, s)
+	}
+	return arr
+}
+
+func TestValidateNodeLogQueryOptions(t *testing.T) {
+	var (
+		service1  = "svc1"
+		service2  = "svc2"
+		file1     = "/test1.log"
+		file2     = "/test2.log"
+		pattern   = "foo"
+		timestamp = metav1.Now()
+	)
+
+	successCase := []struct {
+		name                string
+		nodeLogQueryOptions v1.NodeLogQueryOptions
+	}{
+		{
+			name: "Service NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{service1},
+			},
+		},
+		{
+			name: "Multiple Service NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{service1, service2},
+			},
+		},
+		{
+			name: "File NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{file1},
+			},
+		},
+		{
+			name: "SinceTime NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:     []string{service1},
+				SinceTime: &timestamp,
+			},
+		},
+		{
+			name: "UntilTime NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:     []string{service1},
+				UntilTime: &timestamp,
+			},
+		},
+		{
+			name: "Boot NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{service1},
+				Boot:  int64Ptr(-2),
+			},
+		},
+		{
+			name: "TailLines NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:     []string{service1},
+				TailLines: int64Ptr(100),
+			},
+		},
+		{
+			name: "Pattern NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:   []string{service1},
+				Pattern: pattern,
+			},
+		},
+	}
+	for _, tc := range successCase {
+		t.Run(tc.name, func(t *testing.T) {
+			if errs := ValidateNodeLogQueryOptions(&tc.nodeLogQueryOptions); len(errs) != 0 {
+				t.Errorf("unexpected error: %v", errs)
+			}
+		})
+	}
+
+	errorCase := []struct {
+		name                string
+		nodeLogQueryOptions v1.NodeLogQueryOptions
+	}{
+		{
+			name: "Invalid Query file1 and service1 NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{file1, service1},
+			},
+		},
+		{
+			name: "Invalid Query multiple files NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{file1, file2},
+			},
+		},
+		{
+			name: "Invalid Query file with option NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:     []string{file1, file2},
+				TailLines: int64Ptr(100),
+			},
+		},
+
+		{
+			name: "Invalid Query long service NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{strings.Repeat(service1, 100)},
+			},
+		},
+		{
+			name: "Invalid Query too many service NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: repeatString(strings.Repeat(service1, 100), 11),
+			},
+		},
+		{
+			name: "Invalid Query Boot above range NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query: []string{service1},
+				Boot:  int64Ptr(1),
+			},
+		},
+		{
+			name: "Invalid Query TailLines above range NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:     []string{service1},
+				TailLines: int64Ptr(10000000),
+			},
+		},
+		{
+			name: "Invalid long Pattern NodeLogQueryOptions",
+			nodeLogQueryOptions: v1.NodeLogQueryOptions{
+				Query:   []string{service1},
+				Pattern: strings.Repeat(pattern, 100),
+			},
+		},
+	}
+	for _, tc := range errorCase {
+		t.Run(tc.name, func(t *testing.T) {
+			if errs := ValidateNodeLogQueryOptions(&tc.nodeLogQueryOptions); len(errs) == 0 {
+				t.Errorf("expected error")
+			}
+		})
+	}
+}
+
 func TestAccumulateUniqueHostPorts(t *testing.T) {
 	successCase := []struct {
 		name        string

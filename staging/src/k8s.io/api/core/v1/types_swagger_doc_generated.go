@@ -1144,6 +1144,20 @@ func (NodeList) SwaggerDoc() map[string]string {
 	return map_NodeList
 }
 
+var map_NodeLogQueryOptions = map[string]string{
+	"":          "NodeLogQueryOptions is the query options for a Node's logs REST call. The options specified here intersect unless called out otherwise.",
+	"sinceTime": "sinceTime is an RFC3339 timestamp from which to show logs.",
+	"untilTime": "untilTime is an RFC3339 timestamp until which to show logs.",
+	"tailLines": "tailLines is used to retrieve the specified number of lines (not more than 100k) from the end of the log. Support for this is implementation specific and only available for service logs. It will be ignored for the unsupported case.",
+	"pattern":   "pattern filters log entries by the provided regex pattern. On Linux nodes, this pattern will be read as a PCRE2 regex, on Windows nodes it will be read as a PowerShell regex. Support for this is implementation specific and will be ignored for the unsupported case.",
+	"boot":      "boot show messages from a specific boot. Allowed values are less than 1. Passing an invalid boot offset will fail retrieving logs and return an error. Support for this is implementation specific and will be ignored for the unsupported case.",
+	"query":     "query specifies services(s) or files from which to return logs. The server implements a heuristic to get the logs from service or files. Files are relative to the node's log directory. If both service and file heuristics are specified, an error will be returned. Each query is restricted to a 100 character length.",
+}
+
+func (NodeLogQueryOptions) SwaggerDoc() map[string]string {
+	return map_NodeLogQueryOptions
+}
+
 var map_NodeProxyOptions = map[string]string{
 	"":     "NodeProxyOptions is the query options to a Node's proxy call.",
 	"path": "Path is the URL path to use for the current proxy request to node.",

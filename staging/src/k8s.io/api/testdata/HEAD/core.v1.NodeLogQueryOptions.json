@@ -1,0 +1,12 @@
+{
+  "kind": "NodeLogQueryOptions",
+  "apiVersion": "v1",
+  "sinceTime": "2001-01-01T01:01:01Z",
+  "untilTime": "2002-01-01T01:01:01Z",
+  "tailLines": 3,
+  "pattern": "patternValue",
+  "boot": 5,
+  "query": [
+    "queryValue"
+  ]
+}

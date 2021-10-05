@@ -5478,6 +5478,47 @@ type NodeList struct {
 	Items []Node `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
+// +k8s:conversion-gen:explicit-from=net/url.Values
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NodeLogQueryOptions is the query options for a Node's logs REST call. The options specified here intersect unless
+// called out otherwise.
+type NodeLogQueryOptions struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// sinceTime is an RFC3339 timestamp from which to show logs.
+	// +optional
+	SinceTime *metav1.Time `json:"sinceTime,omitempty" protobuf:"bytes,1,opt,name=sinceTime"`
+
+	// untilTime is an RFC3339 timestamp until which to show logs.
+	// +optional
+	UntilTime *metav1.Time `json:"untilTime,omitempty" protobuf:"bytes,2,opt,name=untilTime"`
+
+	// tailLines is used to retrieve the specified number of lines (not more than 100k) from the end of the log.
+	// Support for this is implementation specific and only available for service logs. It will be ignored for the
+	// unsupported case.
+	// +optional
+	TailLines *int64 `json:"tailLines,omitempty" protobuf:"varint,3,opt,name=tailLines"`
+
+	// pattern filters log entries by the provided regex pattern. On Linux nodes, this pattern will be read as a
+	// PCRE2 regex, on Windows nodes it will be read as a PowerShell regex.
+	// Support for this is implementation specific and will be ignored for the unsupported case.
+	// +optional
+	Pattern string `json:"pattern,omitempty" protobuf:"bytes,4,opt,name=pattern"`
+
+	// boot show messages from a specific boot. Allowed values are less than 1. Passing an invalid boot offset will fail
+	// retrieving logs and return an error.
+	// Support for this is implementation specific and will be ignored for the unsupported case.
+	// +optional
+	Boot *int64 `json:"boot,omitempty" protobuf:"varint,5,opt,name=boot"`
+
+	// query specifies services(s) or files from which to return logs. The server implements a heuristic to get
+	// the logs from service or files. Files are relative to the node's log directory. If both service and file
+	// heuristics are specified, an error will be returned. Each query is restricted to a 100 character length.
+	// +listType=set
+	Query []string `json:"query" protobuf:"bytes,6,rep,name=query"`
+}
+
 // FinalizerName is the name identifying a finalizer during namespace lifecycle.
 type FinalizerName string
 
