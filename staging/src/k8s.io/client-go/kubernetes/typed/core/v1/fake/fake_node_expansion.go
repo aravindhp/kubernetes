@@ -18,9 +18,16 @@ package fake
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
+	fakerest "k8s.io/client-go/rest/fake"
 	core "k8s.io/client-go/testing"
 )
 
@@ -35,4 +42,27 @@ func (c *FakeNodes) PatchStatus(_ context.Context, nodeName string, data []byte)
 	}
 
 	return obj.(*v1.Node), err
+}
+
+func (c *FakeNodes) GetLogs(nodeName string, opts *v1.NodeLogQueryOptions) *restclient.Request {
+	action := core.GenericActionImpl{}
+	action.Verb = "get"
+	action.Resource = nodesResource
+	action.Subresource = "log"
+	action.Value = opts
+
+	_, _ = c.Fake.Invokes(action, &v1.Node{})
+	fakeClient := &fakerest.RESTClient{
+		Client: fakerest.CreateHTTPClient(func(request *http.Request) (*http.Response, error) {
+			resp := &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(strings.NewReader("fake node logs")),
+			}
+			return resp, nil
+		}),
+		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
+		GroupVersion:         nodesKind.GroupVersion(),
+		VersionedAPIPath:     fmt.Sprintf("/api/v1/nodes/%s/log", nodeName),
+	}
+	return fakeClient.Request()
 }

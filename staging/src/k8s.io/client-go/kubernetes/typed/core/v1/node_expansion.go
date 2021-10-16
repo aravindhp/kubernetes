@@ -18,9 +18,12 @@ package v1
 
 import (
 	"context"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	restclient "k8s.io/client-go/rest"
 )
 
 // The NodeExpansion interface allows manually adding extra methods to the NodeInterface.
@@ -28,6 +31,20 @@ type NodeExpansion interface {
 	// PatchStatus modifies the status of an existing node. It returns the copy
 	// of the node that the server returns, or an error.
 	PatchStatus(ctx context.Context, nodeName string, data []byte) (*v1.Node, error)
+	GetLogs(nodeName string, opts *v1.NodeLogQueryOptions) *restclient.Request
+}
+
+// GetLogs constructs a request for getting the logs for a node
+func (c *nodes) GetLogs(nodeName string, opts *v1.NodeLogQueryOptions) *restclient.Request {
+	req := c.client.Get().
+		Resource("nodes").
+		Name(nodeName).
+		SubResource("proxy", "logs").
+		VersionedParams(opts, scheme.ParameterCodec)
+	if opts.Query != nil && strings.ContainsAny(opts.Query[0], "/\\") {
+		req = req.Suffix(opts.Query[0])
+	}
+	return req
 }
 
 // PatchStatus modifies the status of an existing node. It returns the copy of

@@ -39,6 +39,7 @@ import (
 	v1apply "k8s.io/client-go/applyconfigurations/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	ref "k8s.io/client-go/tools/reference"
 	utilnode "k8s.io/component-helpers/node/topology"
@@ -279,6 +280,11 @@ func (m *FakeNodeHandler) UpdateStatus(_ context.Context, node *v1.Node, _ metav
 func (m *FakeNodeHandler) PatchStatus(ctx context.Context, nodeName string, data []byte) (*v1.Node, error) {
 	m.RequestCount++
 	return m.Patch(ctx, nodeName, types.StrategicMergePatchType, data, metav1.PatchOptions{}, "status")
+}
+
+// GetLogs gets the logs of a Node in the fake store.
+func (m *FakeNodeHandler) GetLogs(nodeName string, opts *v1.NodeLogQueryOptions) *rest.Request {
+	return nil
 }
 
 // Watch watches Nodes in a fake store.
