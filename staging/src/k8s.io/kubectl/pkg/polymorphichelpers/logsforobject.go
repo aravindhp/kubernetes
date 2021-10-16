@@ -49,12 +49,39 @@ func logsForObject(restClientGetter genericclioptions.RESTClientGetter, object, 
 
 // this is split for easy test-ability
 func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, options runtime.Object, timeout time.Duration, allContainers bool) (map[corev1.ObjectReference]rest.ResponseWrapper, error) {
-	opts, ok := options.(*corev1.PodLogOptions)
-	if !ok {
-		return nil, errors.New("provided options object is not a PodLogOptions")
+	podLogOpts, podOk := options.(*corev1.PodLogOptions)
+	nodeLogOpts, nodeOk := options.(*corev1.NodeLogQueryOptions)
+	if !podOk && !nodeOk {
+		return nil, errors.New("provided options object is neither a PodLogOptions nor a NodeLogQueryOptions")
 	}
 
 	switch t := object.(type) {
+	case *corev1.NodeList:
+		ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
+		for i := range t.Items {
+			currRet, err := logsForObjectWithClient(clientset, &t.Items[i], options, timeout, false)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range currRet {
+				ret[k] = v
+			}
+		}
+		return ret, nil
+	case *corev1.Node:
+		currOpts := new(corev1.NodeLogQueryOptions)
+		if nodeLogOpts != nil {
+			nodeLogOpts.DeepCopyInto(currOpts)
+		}
+
+		ref, err := reference.GetReference(scheme.Scheme, object)
+		if err != nil {
+			return nil, fmt.Errorf("unable to construct reference to '%#v': %v", t, err)
+		}
+		ret := make(map[corev1.ObjectReference]rest.ResponseWrapper, 1)
+		ret[*ref] = clientset.Nodes().GetLogs(t.Name, currOpts)
+
+		return ret, nil
 	case *corev1.PodList:
 		ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
 		for i := range t.Items {
@@ -72,8 +99,8 @@ func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, opt
 		// if allContainers is true, then we're going to locate all containers and then iterate through them. At that point, "allContainers" is false
 		if !allContainers {
 			currOpts := new(corev1.PodLogOptions)
-			if opts != nil {
-				opts.DeepCopyInto(currOpts)
+			if podLogOpts != nil {
+				podLogOpts.DeepCopyInto(currOpts)
 			}
 			// in case the "kubectl.kubernetes.io/default-container" annotation is present, we preset the opts.Containers to default to selected
 			// container. This gives users ability to preselect the most interesting container in pod.
@@ -105,7 +132,7 @@ func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, opt
 			}
 			ref, err := reference.GetPartialReference(scheme.Scheme, t, fieldPath)
 			if err != nil {
-				return nil, fmt.Errorf("Unable to construct reference to '%#v': %v", t, err)
+				return nil, fmt.Errorf("unable to construct reference to '%#v': %v", t, err)
 			}
 
 			ret := make(map[corev1.ObjectReference]rest.ResponseWrapper, 1)
@@ -115,7 +142,7 @@ func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, opt
 
 		ret := make(map[corev1.ObjectReference]rest.ResponseWrapper)
 		for _, c := range t.Spec.InitContainers {
-			currOpts := opts.DeepCopy()
+			currOpts := podLogOpts.DeepCopy()
 			currOpts.Container = c.Name
 			currRet, err := logsForObjectWithClient(clientset, t, currOpts, timeout, false)
 			if err != nil {
@@ -126,7 +153,7 @@ func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, opt
 			}
 		}
 		for _, c := range t.Spec.Containers {
-			currOpts := opts.DeepCopy()
+			currOpts := podLogOpts.DeepCopy()
 			currOpts.Container = c.Name
 			currRet, err := logsForObjectWithClient(clientset, t, currOpts, timeout, false)
 			if err != nil {
@@ -137,7 +164,7 @@ func logsForObjectWithClient(clientset corev1client.CoreV1Interface, object, opt
 			}
 		}
 		for _, c := range t.Spec.EphemeralContainers {
-			currOpts := opts.DeepCopy()
+			currOpts := podLogOpts.DeepCopy()
 			currOpts.Container = c.Name
 			currRet, err := logsForObjectWithClient(clientset, t, currOpts, timeout, false)
 			if err != nil {
