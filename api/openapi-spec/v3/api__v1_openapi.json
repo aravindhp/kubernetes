@@ -25567,6 +25567,108 @@
         }
       }
     },
+    "/api/v1/nodes/{name}/logs": {
+      "get": {
+        "description": "read logs of the specified Node",
+        "operationId": "readCoreV1NodeLogs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.kubernetes.protobuf": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "tags": [
+          "core_v1"
+        ],
+        "x-kubernetes-action": "get",
+        "x-kubernetes-group-version-kind": {
+          "group": "",
+          "kind": "Node",
+          "version": "v1"
+        }
+      },
+      "parameters": [
+        {
+          "description": "boot show messages from a specific boot. Allowed values are less than 1. Passing an invalid boot offset will fail retrieving logs and return an error. Support for this is implementation specific and will be ignored for the unsupported case.",
+          "in": "query",
+          "name": "boot",
+          "schema": {
+            "type": "integer",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "name of the Node",
+          "in": "path",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "pattern filters log entries by the provided regex pattern. On Linux nodes, this pattern will be read as a PCRE2 regex, on Windows nodes it will be read as a PowerShell regex. Support for this is implementation specific and will be ignored for the unsupported case.",
+          "in": "query",
+          "name": "pattern",
+          "schema": {
+            "type": "string",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "If 'true', then the output is pretty printed.",
+          "in": "query",
+          "name": "pretty",
+          "schema": {
+            "type": "string",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "query specifies services(s) or files from which to return logs. The server implements a heuristic to get the logs from service or files. Files are relative to the node's log directory. If both service and file heuristics are specified, an error will be returned. Each query is restricted to a 100 character length.",
+          "in": "query",
+          "name": "query",
+          "schema": {
+            "type": "string",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "tailLines is used to retrieve the specified number of lines (not more than 100k) from the end of the log. Support for this is implementation specific and only available for service logs. It will be ignored for the unsupported case.",
+          "in": "query",
+          "name": "tailLines",
+          "schema": {
+            "type": "integer",
+            "uniqueItems": true
+          }
+        }
+      ]
+    },
     "/api/v1/nodes/{name}/proxy": {
       "delete": {
         "description": "connect DELETE requests to proxy of Node",

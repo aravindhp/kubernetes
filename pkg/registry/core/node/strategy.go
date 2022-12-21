@@ -22,6 +22,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -276,4 +278,63 @@ func dynamicKubeletConfigIsDeprecatedWarning(obj runtime.Object) []string {
 		return warnings
 	}
 	return nil
+}
+
+func getNode(ctx context.Context, getter ResourceGetter, name string) (*api.Node, error) {
+	obj, err := getter.Get(ctx, name, &metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	node := obj.(*api.Node)
+	if node == nil {
+		return nil, fmt.Errorf("Unexpected object type: %#v", node)
+	}
+	return node, nil
+}
+
+// LogQueryLocation returns the node log query URL for a node
+func LogQueryLocation(
+	ctx context.Context, getter ResourceGetter,
+	connInfo client.ConnectionInfoGetter,
+	name string,
+	opts *api.NodeLogQueryOptions,
+) (*url.URL, http.RoundTripper, error) {
+	node, err := getNode(ctx, getter, name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	nodeInfo, err := connInfo.GetConnectionInfo(ctx, types.NodeName(node.ObjectMeta.Name))
+	if err != nil {
+		return nil, nil, err
+	}
+	params := url.Values{}
+	path := fmt.Sprintf("/logs/%s", node.Name)
+	if opts.SinceTime != nil {
+		params.Add("sinceTime", opts.SinceTime.Format(time.RFC3339))
+	}
+	if opts.UntilTime != nil {
+		params.Add("untilTime", opts.UntilTime.Format(time.RFC3339))
+	}
+	if opts.TailLines != nil {
+		params.Add("tailLines", strconv.FormatInt(*opts.TailLines, 10))
+	}
+	if opts.Pattern != "" {
+		params.Add("pattern", opts.Pattern)
+	}
+	if opts.Boot != nil {
+		params.Add("boot", strconv.FormatInt(*opts.Boot, 10))
+	}
+	if len(opts.Query) > 0 {
+		for _, query := range opts.Query {
+			params.Add("query", query)
+		}
+	}
+	loc := &url.URL{
+		Scheme:   nodeInfo.Scheme,
+		Host:     net.JoinHostPort(nodeInfo.Hostname, nodeInfo.Port),
+		Path:     path,
+		RawQuery: params.Encode(),
+	}
+	return loc, nodeInfo.Transport, nil
 }

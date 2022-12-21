@@ -18,7 +18,6 @@ package v1
 
 import (
 	"context"
-	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -39,11 +38,8 @@ func (c *nodes) GetLogs(nodeName string, opts *v1.NodeLogQueryOptions) *restclie
 	req := c.client.Get().
 		Resource("nodes").
 		Name(nodeName).
-		SubResource("proxy", "logs").
+		SubResource("logs").
 		VersionedParams(opts, scheme.ParameterCodec)
-	if opts.Query != nil && strings.ContainsAny(opts.Query[0], "/\\") {
-		req = req.Suffix(opts.Query[0])
-	}
 	return req
 }
 

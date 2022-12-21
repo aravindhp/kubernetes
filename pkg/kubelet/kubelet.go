@@ -1518,6 +1518,7 @@ func (kl *Kubelet) Run(updates <-chan kubetypes.PodUpdate) {
 					journal.ServeHTTP(w, req)
 					return
 				}
+				req.URL.Path = nodeLogQueryOptions.Query[0]
 				file.ServeHTTP(w, req)
 			}))
 		} else {

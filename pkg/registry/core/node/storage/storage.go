@@ -45,6 +45,7 @@ type NodeStorage struct {
 	Node   *REST
 	Status *StatusREST
 	Proxy  *noderest.ProxyREST
+	Log    *noderest.LogREST
 
 	KubeletConnectionInfo client.ConnectionInfoGetter
 }
@@ -126,6 +127,7 @@ func NewStorage(optsGetter generic.RESTOptionsGetter, kubeletClientConfig client
 	nodeREST := &REST{Store: store, proxyTransport: proxyTransport}
 	statusREST := &StatusREST{store: &statusStore}
 	proxyREST := &noderest.ProxyREST{Store: store, ProxyTransport: proxyTransport}
+	logRest := &noderest.LogREST{Store: store}
 
 	// Build a NodeGetter that looks up nodes using the REST handler
 	nodeGetter := client.NodeGetterFunc(func(ctx context.Context, nodeName string, options metav1.GetOptions) (*v1.Node, error) {
@@ -151,11 +153,13 @@ func NewStorage(optsGetter generic.RESTOptionsGetter, kubeletClientConfig client
 	}
 	nodeREST.connection = connectionInfoGetter
 	proxyREST.Connection = connectionInfoGetter
+	logRest.KubeletConn = connectionInfoGetter
 
 	return &NodeStorage{
 		Node:                  nodeREST,
 		Status:                statusREST,
 		Proxy:                 proxyREST,
+		Log:                   logRest,
 		KubeletConnectionInfo: connectionInfoGetter,
 	}, nil
 }

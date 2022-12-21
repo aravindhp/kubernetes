@@ -323,6 +323,7 @@ func (c LegacyRESTStorageProvider) NewLegacyRESTStorage(apiResourceConfigSource 
 		storage[resource] = nodeStorage.Node
 		storage[resource+"/proxy"] = nodeStorage.Proxy
 		storage[resource+"/status"] = nodeStorage.Status
+		storage[resource+"/logs"] = nodeStorage.Log
 	}
 
 	if resource := "events"; apiResourceConfigSource.ResourceEnabled(corev1.SchemeGroupVersion.WithResource(resource)) {
