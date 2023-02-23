@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/kubectl/pkg/cmd/auth"
+	"k8s.io/kubectl/pkg/cmd/logs"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -36,6 +37,7 @@ func NewCmdAlpha(f cmdutil.Factory, streams genericclioptions.IOStreams) *cobra.
 
 	// Alpha commands should be added here. As features graduate from alpha they should move
 	// from here to the CommandGroups defined by NewKubeletCommand() in cmd.go.
+	cmd.AddCommand(logs.NewCmdNodeLogs(f, streams))
 
 	authCmds := &cobra.Command{
 		Use:   "auth",
