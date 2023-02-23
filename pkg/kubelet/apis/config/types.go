@@ -476,6 +476,9 @@ type KubeletConfiguration struct {
 	// If not specified the default value is ContainerRuntimeEndpoint
 	// +optional
 	ImageServiceEndpoint string
+
+	// EnableNodeLogQuery enables query service logs using the /logs handler.
+	EnableNodeLogQuery bool
 }
 
 // KubeletAuthorizationMode denotes the authorization mode for the kubelet
