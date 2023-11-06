@@ -9,6 +9,48 @@ set -o pipefail
 # for use in CI and should have no dependencies beyond oc, kubectl and
 # k8s-e2e.test.
 
+function setup_bastion() {
+    cluster_profile=/var/run/secrets/ci.openshift.io/cluster-profile
+    GCE_SSH_KEY=${cluster_profile}/ssh-privatekey
+    KUBE_SSH_KEY_PATH=${cluster_profile}/ssh-privatekey
+    KUBE_SSH_USER=core
+    SSH_BASTION_NAMESPACE=test-ssh-bastion
+    export GCE_SSH_KEY KUBE_SSH_USER KUBE_SSH_KEY_PATH SSH_BASTION_NAMESPACE
+    echo "Setting up ssh bastion"
+
+    # configure the local container environment to have the correct SSH configuration
+    mkdir -p ~/.ssh
+    cp "${KUBE_SSH_KEY_PATH}" ~/.ssh/id_rsa
+    chmod 0600 ~/.ssh/id_rsa
+    if ! whoami &> /dev/null; then
+        if [[ -w /etc/passwd ]]; then
+            echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${HOME}:/sbin/nologin" >> /etc/passwd
+        fi
+    fi
+
+    # if this is run from a flow that does not have the ssh-bastion step, deploy the bastion
+    if ! oc get -n "${SSH_BASTION_NAMESPACE}" ssh-bastion; then
+        curl https://raw.githubusercontent.com/eparis/ssh-bastion/master/deploy/deploy.sh | bash -x
+    fi
+
+    # locate the bastion host for use within the tests
+    for _ in $(seq 0 30); do
+        # AWS fills only .hostname of a service
+        BASTION_HOST=$(oc get service -n "${SSH_BASTION_NAMESPACE}" ssh-bastion -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        if [[ -n "${BASTION_HOST}" ]]; then break; fi
+        # Azure fills only .ip of a service. Use it as bastion host.
+        BASTION_HOST=$(oc get service -n "${SSH_BASTION_NAMESPACE}" ssh-bastion -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        if [[ -n "${BASTION_HOST}" ]]; then break; fi
+        echo "Waiting for SSH bastion load balancer service"
+        sleep 10
+    done
+    if [[ -z "${BASTION_HOST}" ]]; then
+        echo >&2 "Failed to find bastion address, exiting"
+        exit 1
+    fi
+    export KUBE_SSH_BASTION="${BASTION_HOST}:22"
+}
+
 # Identify the platform under test to allow skipping tests that are
 # not compatible.
 CLUSTER_TYPE="${CLUSTER_TYPE:-gcp}"
@@ -16,6 +58,8 @@ case "${CLUSTER_TYPE}" in
   gcp)
     # gce is used as a platform label instead of gcp
     PLATFORM=gce
+    # Bastion is required for running the NodeLogQuery tests
+    setup_bastion
     ;;
   *)
     PLATFORM="${CLUSTER_TYPE}"
